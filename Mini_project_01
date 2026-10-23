@@ -1,0 +1,24 @@
+class Browser:
+    def __init__(self, home="about:blank"):
+        self.current = home
+        self.history = []
+
+    def visit(self, url):
+        self.history.append(self.current)
+        self.current = url
+        print("Visited:", self.current)
+
+    def back(self):
+        if not self.history:
+            print("No history")
+            return
+        self.current = self.history.pop()
+        print("Back to:", self.current)
+
+
+b = Browser("google.com")
+b.visit("youtube.com")
+b.visit("github.com")
+b.back()
+b.back()
+b.back()
