@@ -1,24 +1,139 @@
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        if self.is_empty():
+            raise IndexError("pop from empty stack")
+        return self.items.pop()
+
+    def peek(self):
+        if self.is_empty():
+            raise IndexError("peek from empty stack")
+        return self.items[-1]
+
+    def is_empty(self):
+        return len(self.items) == 0
+
+    def size(self):
+        return len(self.items)
+
+    def clear(self):
+        self.items = []
+
+    def to_list(self):
+        return list(self.items)
+
+
 class Browser:
-    def __init__(self, home="about:blank"):
+    def __init__(self, home="about:blank", limit=None):
         self.current = home
-        self.history = []
+        self.back_stack = Stack()
+        self.forward_stack = Stack()
+        self.limit = limit
 
     def visit(self, url):
-        self.history.append(self.current)
+        if url == self.current:
+            print(f"Already on {url}")
+            return
+        self.back_stack.push(self.current)
+        if self.limit and self.back_stack.size() > self.limit:
+            self.back_stack.items.pop(0)
         self.current = url
-        print("Visited:", self.current)
+        self.forward_stack.clear()
+        print(f"Visited : {self.current}")
 
     def back(self):
-        if not self.history:
-            print("No history")
-            return
-        self.current = self.history.pop()
-        print("Back to:", self.current)
+        if self.back_stack.is_empty():
+            print("Back    : no history")
+            return False
+        self.forward_stack.push(self.current)
+        self.current = self.back_stack.pop()
+        print(f"Back    : {self.current}")
+        return True
+
+    def forward(self):
+        if self.forward_stack.is_empty():
+            print("Forward : no forward history")
+            return False
+        self.back_stack.push(self.current)
+        self.current = self.forward_stack.pop()
+        print(f"Forward : {self.current}")
+        return True
+
+    def back_many(self, steps):
+        moved = 0
+        for _ in range(steps):
+            if not self.back():
+                break
+            moved += 1
+        return moved
+
+    def can_go_back(self):
+        return not self.back_stack.is_empty()
+
+    def can_go_forward(self):
+        return not self.forward_stack.is_empty()
+
+    def history(self):
+        past = self.back_stack.to_list()
+        future = self.forward_stack.to_list()[::-1]
+        return past, self.current, future
+
+    def show_history(self):
+        past, now, future = self.history()
+        line = past + [f"[{now}]"] + future
+        print("History : " + " > ".join(line) if line else "History : empty")
+
+    def status(self):
+        print(f"Status  : current={self.current}, "
+              f"back={self.back_stack.size()}, forward={self.forward_stack.size()}")
 
 
-b = Browser("google.com")
-b.visit("youtube.com")
-b.visit("github.com")
-b.back()
-b.back()
-b.back()
+def run_session(commands, home="google.com", limit=None):
+    browser = Browser(home, limit)
+    for command in commands:
+        action, _, argument = command.partition(" ")
+        if action == "visit":
+            browser.visit(argument)
+        elif action == "back":
+            browser.back_many(int(argument) if argument else 1)
+        elif action == "forward":
+            browser.forward()
+        elif action == "history":
+            browser.show_history()
+        elif action == "status":
+            browser.status()
+        else:
+            print(f"Unknown command: {command}")
+    return browser
+
+
+def main():
+    print("=== Session 1: basic navigation ===")
+    run_session([
+        "visit youtube.com", "visit github.com", "visit stackoverflow.com",
+        "history", "back", "back", "history",
+        "forward", "history", "status",
+    ])
+
+    print("\n=== Session 2: new visit clears forward history ===")
+    run_session([
+        "visit a.com", "visit b.com", "visit c.com",
+        "back 2", "history",
+        "visit d.com", "history", "forward",
+    ])
+
+    print("\n=== Session 3: empty history cases ===")
+    run_session(["back", "forward", "visit x.com", "visit x.com", "back 5", "status"])
+
+    print("\n=== Session 4: history limited to 3 pages ===")
+    run_session([f"visit page{i}.com" for i in range(1, 7)] + ["history", "back 10", "status"],
+                limit=3)
+
+
+if __name__ == "__main__":
+    main()
